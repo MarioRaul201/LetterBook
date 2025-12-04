@@ -1,0 +1,281 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Letter Book — Frontend</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
+  <style>
+    :root{
+      --bg-pink: #f3c3ec;
+      --panel-magenta: #8a1f74;
+      --panel-magenta-dark: #6d185c;
+    }
+    .tracking-wide-letters{letter-spacing:1.4rem}
+    .glass{
+      backdrop-filter: blur(14px);
+      background: rgba(138, 31, 116, 0.18);
+    }
+  </style>
+</head>
+<body class="bg-gradient-to-br from-[color:var(--bg-pink)] to-white min-h-screen antialiased text-gray-900">
+  <header class="max-w-7xl mx-auto px-6 py-10">
+    <h1 class="text-center text-5xl font-black text-[color:var(--panel-magenta-dark)] tracking-wide-letters drop-shadow-lg">Letter Book</h1>
+  </header>
+
+  <main class="max-w-7xl mx-auto px-6">
+    <section class="grid grid-cols-1 lg:grid-cols-2 gap-10">
+
+      <!-- LEFT: PROFILE + FAVORITES -->
+      <aside class="glass text-white rounded-3xl p-8 shadow-2xl flex flex-col gap-8 border border-white/20">
+        <div class="flex items-start gap-8">
+          <div class="flex-1">
+            <p class="text-sm opacity-80">Who am I?</p>
+            <input
+              id="username"
+              type="text"
+              placeholder="Escribe tu nombre"
+              class="px-4 py-3 rounded-lg text-[color:var(--panel-magenta-dark)] w-full bg-white shadow"
+            />
+
+            <p class="mt-6 text-sm opacity-80">Favorite books</p>
+            <ol id="favorites" class="ml-4 list-decimal mt-3 space-y-3 text-sm"></ol>
+            <button id="add-fav" class="mt-3 bg-white/20 hover:bg-white/30 px-3 py-2 rounded-md transition">+ Agregar favorito</button>
+          </div>
+
+          <div id="photo-box" class="w-32 h-32 bg-white/90 rounded-xl shadow-xl flex-shrink-0 flex items-center justify-center text-xs text-gray-800 overflow-hidden border border-white/40">
+            <label for="photo-upload" id="photo-label" class="cursor-pointer text-[color:var(--panel-magenta-dark)] underline">FOTO</label>
+            <input id="photo-upload" type="file" accept="image/*" class="hidden" />
+          </div>
+        </div>
+
+        <div class="flex gap-4 items-center">
+          <button id="btn-import" class="bg-white/20 hover:bg-white/30 px-4 py-2 rounded-lg shadow">Import CSV</button>
+          <button id="btn-export" class="bg-white/20 hover:bg-white/30 px-4 py-2 rounded-lg shadow">Export CSV</button>
+          <div class="ml-auto text-right">
+            <label class="text-xs opacity-80 block mb-1">Quick filter</label>
+            <select id="quick-filter" class="bg-white/20 text-white px-3 py-2 rounded-lg text-sm shadow">
+              <option value="ALL">All</option>
+              <option value="PLANNED">Planned</option>
+              <option value="READING">Reading</option>
+              <option value="READ">Read</option>
+            </select>
+          </div>
+        </div>
+
+        <p class="text-[12px] opacity-80 mt-auto">Tip: Usa export/import para respaldar o mover tu lista entre dispositivos.</p>
+      </aside>
+
+      <!-- RIGHT: BOOK LIST -->
+      <section class="glass text-white rounded-3xl p-8 shadow-2xl border border-white/20">
+        <div class="flex items-center justify-between gap-6 mb-6">
+          <div>
+            <h3 class="text-2xl font-bold">My books</h3>
+            <p class="text-sm opacity-80">Lista de libros con estado y calificación</p>
+          </div>
+
+          <div class="flex items-center gap-3">
+            <input id="search" type="search" placeholder="Buscar título o autor" class="px-3 py-2 rounded-lg text-[color:var(--panel-magenta-dark)] bg-white shadow" />
+            <button id="btn-add" class="bg-white text-[color:var(--panel-magenta-dark)] px-5 py-2 rounded-lg font-semibold shadow">Agregar</button>
+          </div>
+        </div>
+
+        <div class="overflow-auto rounded-xl border border-white/20">
+          <table class="min-w-full text-left table-auto">
+            <thead class="border-b border-white/30 bg-white/5">
+              <tr>
+                <th class="px-4 py-3 text-sm">#</th>
+                <th class="px-4 py-3 text-sm">Libro</th>
+                <th class="px-4 py-3 text-sm">Estado</th>
+                <th class="px-4 py-3 text-sm">Aprobación</th>
+                <th class="px-4 py-3 text-sm">Acciones</th>
+              </tr>
+            </thead>
+            <tbody id="books-table" class="divide-y divide-white/10"></tbody>
+          </table>
+        </div>
+      </section>
+
+    </section>
+  </main>
+
+  <!-- MODAL -->
+  <div id="modal" class="fixed inset-0 bg-black/60 hidden items-center justify-center p-4 backdrop-blur-sm">
+    <div class="bg-white rounded-2xl w-full max-w-md p-6 shadow-2xl">
+      <h4 class="text-xl font-semibold mb-4 text-gray-800">Agregar / Editar libro</h4>
+      <form id="book-form" class="flex flex-col gap-4">
+        <input id="form-id" type="hidden" />
+        <input id="form-title" placeholder="Título" class="px-3 py-3 border rounded-lg" required />
+        <input id="form-author" placeholder="Autor" class="px-3 py-3 border rounded-lg" />
+
+        <div class="flex gap-3">
+          <select id="form-status" class="px-3 py-3 border rounded-lg flex-1">
+            <option value="PLANNED">PLANNED</option>
+            <option value="READING">READING</option>
+            <option value="READ">READ</option>
+          </select>
+          <input id="form-rating" type="number" min="1" max="5" placeholder="Rating (1-5)" class="w-36 px-3 py-3 border rounded-lg" />
+        </div>
+
+        <div class="flex justify-end gap-3 mt-2">
+          <button type="button" id="btn-cancel" class="px-4 py-2 rounded-lg border">Cancelar</button>
+          <button type="submit" class="px-5 py-2 rounded-lg bg-[color:var(--panel-magenta)] text-white font-semibold shadow">Guardar</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+<!-- ===========================
+     AQUI ESTÁ TODO EL JS FINAL
+=========================== -->
+<script>
+// URL del backend
+const API_URL = "http://localhost:8000";
+
+// Utilidades
+function qs(id) { return document.getElementById(id); }
+function showModal() { qs("modal").classList.remove("hidden"); }
+function hideModal() { qs("modal").classList.add("hidden"); }
+
+// ===========================
+// CARGAR LIBROS
+// ===========================
+async function loadBooks() {
+  const q = qs("search").value || "";
+  const status = qs("quick-filter").value;
+
+  const params = new URLSearchParams();
+  if (q.trim() !== "") params.append("q", q);
+  if (status !== "ALL") params.append("status", status);
+
+  const res = await fetch(`${API_URL}/books?${params}`);
+  const data = await res.json();
+  renderBooks(data.items);
+}
+
+function renderBooks(books) {
+  const tbody = qs("books-table");
+  tbody.innerHTML = "";
+
+  books.forEach(book => {
+    const tr = document.createElement("tr");
+
+    tr.innerHTML = `
+      <td class="px-4 py-3">${book.id}</td>
+      <td class="px-4 py-3">
+        <strong>${book.title}</strong>
+        <div class="text-xs opacity-80">${book.author || ""}</div>
+      </td>
+      <td class="px-4 py-3">${book.status}</td>
+      <td class="px-4 py-3">${book.rating || "-"}</td>
+      <td class="px-4 py-3 flex gap-2">
+        <button class="px-3 py-1 bg-white/20 rounded" onclick="editBook(${book.id})">Editar</button>
+        <button class="px-3 py-1 bg-red-500/60 rounded" onclick="deleteBook(${book.id})">Eliminar</button>
+      </td>
+    `;
+
+    tbody.appendChild(tr);
+  });
+}
+
+// ===========================
+// AGREGAR LIBRO
+// ===========================
+qs("btn-add").addEventListener("click", () => {
+  qs("form-id").value = "";
+  qs("book-form").reset();
+  showModal();
+});
+
+// ===========================
+// EDITAR LIBRO
+// ===========================
+async function editBook(id) {
+  const res = await fetch(`${API_URL}/books/${id}`);
+  const book = await res.json();
+
+  qs("form-id").value = book.id;
+  qs("form-title").value = book.title;
+  qs("form-author").value = book.author;
+  qs("form-status").value = book.status;
+  qs("form-rating").value = book.rating || "";
+
+  showModal();
+}
+
+// ===========================
+// GUARDAR (CREATE / UPDATE)
+// ===========================
+qs("book-form").addEventListener("submit", async (e) => {
+  e.preventDefault();
+
+  const id = qs("form-id").value;
+
+  const payload = {
+    title: qs("form-title").value,
+    author: qs("form-author").value,
+    status: qs("form-status").value,
+    rating: qs("form-rating").value ? Number(qs("form-rating").value) : null
+  };
+
+  const url = id ? `${API_URL}/books/${id}` : `${API_URL}/books`;
+  const method = id ? "PATCH" : "POST";
+
+  await fetch(url, {
+    method,
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload)
+  });
+
+  hideModal();
+  loadBooks();
+});
+
+// ===========================
+// ELIMINAR LIBRO
+// ===========================
+async function deleteBook(id) {
+  if (!confirm("¿Eliminar este libro?")) return;
+
+  await fetch(`${API_URL}/books/${id}`, { method: "DELETE" });
+  loadBooks();
+}
+
+// ===========================
+// BUSQUEDA Y FILTRO
+// ===========================
+qs("search").addEventListener("input", loadBooks);
+qs("quick-filter").addEventListener("change", loadBooks);
+
+// ===========================
+// EXPORT CSV
+// ===========================
+qs("btn-export").addEventListener("click", () => {
+  window.location.href = `${API_URL}/books/export.csv`;
+});
+
+// ===========================
+// IMPORT CSV (opcional)
+// ===========================
+qs("btn-import").addEventListener("click", () => {
+  alert("Import CSV no implementado aún");
+});
+
+// ===========================
+// CANCELAR MODAL
+// ===========================
+qs("btn-cancel").addEventListener("click", hideModal);
+
+// ===========================
+// INICIO
+// ===========================
+loadBooks();
+</script>
+
+  <footer class="mt-10 mb-4 text-center text-[14px] text-gray-700 opacity-70 font-serif">
+    “Read and be charming" - Eloise
+  </footer>
+
+</body>
+</html>
