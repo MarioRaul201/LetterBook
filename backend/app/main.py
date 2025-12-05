@@ -14,6 +14,10 @@ from .utils_csv import books_to_csv
 
 app = FastAPI(title="Libros API", version="1.0.0")
 
+@app.get("/")
+async def root():
+    return {"message": "Backend funcionando!"}
+
 
 @app.on_event("startup")
 async def on_startup():
